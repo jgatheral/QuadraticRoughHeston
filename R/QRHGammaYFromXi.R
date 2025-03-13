@@ -3,7 +3,7 @@ library(statmod)
 yFromXi <- function(params, xi) {
   al <- params$al
   H <- al - 1 / 2
-  eta <- params$eta
+  nu <- params$nu
   lam <- params$lam
 
   # Compute nodes and weights
@@ -12,7 +12,7 @@ yFromXi <- function(params, xi) {
   y.raw <- function(u) {
     # Function to be integrated
     f <- function(x) {
-      prefactor <- (u / 2)^(2 * H) * eta^2 * 2 * H
+      prefactor <- (u / 2)^(2 * H) * nu^2 / gamma(al)^2
       prefactor * xi(u / 2 * (1 + x)) * exp(-lam * u * (1 - x))
     }
 

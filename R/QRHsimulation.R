@@ -12,8 +12,6 @@ QRH.sim <- function(params, xi) {
   function(paths, steps, expiries, output = "all", delvix = 1 / 12, nvix = 10) {
     library(gsl)
 
-    eta <- params$eta
-    lam <- params$lam
     c <- params$c
     H <- params$al - 1 / 2
 
@@ -27,15 +25,13 @@ QRH.sim <- function(params, xi) {
 
     sim <- function(expiry) {
       dt <- expiry / steps
-      sqrt.dt <- sqrt(dt)
-      K0del <- eta * K0p(dt)
+      K0del <- K0p(dt)
       K00del <- K00p(dt)
       bigK0del <- bigK0p(dt)
       tj <- (1:steps) * dt
       yj <- ey(tj)
       K00j <- c(0, K00p(tj))
       bstar <- sqrt(diff(K00j) / dt)
-      bstar1 <- bstar[1]
       chi <- array(0, dim = c(steps, paths))
       v <- rep(v0, paths)
       Y <- rep(ey(0), paths)
@@ -67,7 +63,7 @@ QRH.sim <- function(params, xi) {
       }
       vix2 <- 0
       ds <- delvix / nvix
-      if ((output == "vix") | (output == "all")) {
+      if ((output == "vix") || (output == "all")) {
         for (k in 1:nvix) {
           tk <- expiry + k * ds
           Ku <- c(K00p(tk), K00p(tk - tj))
@@ -113,8 +109,6 @@ QRH.sim <- function(params, xi) {
 QRH.blip <- function(params, xi, h) {
   function(paths, steps, expiries) {
     library(gsl)
-    eta <- params$eta
-    lam <- params$lam
     c <- params$c
     H <- params$al - 1 / 2
     Z.eps <- matrix(rnorm(steps * paths), nrow = steps, ncol = paths)
@@ -133,14 +127,12 @@ QRH.blip <- function(params, xi, h) {
     for (i in 1:nn) {
       expiry <- expiries[i]
       dt <- expiry / steps
-      sqrt.dt <- sqrt(dt)
-      K0del <- eta * K0p(dt)
+      K0del <- K0p(dt)
       K00del <- K00p(dt)
       bigK0del <- bigK0p(dt)
       tj <- (1:steps) * dt
       K00j <- c(0, K00p(tj))
       bstar <- sqrt(diff(K00j) / dt)
-      bstar1 <- bstar[1]
       rho.uchi <- K0del / sqrt(K00del * dt)
       beta.uchi <- K0del / dt
 
@@ -166,7 +158,6 @@ QRH.blip <- function(params, xi, h) {
 
       for (j in 1:steps) {
         btilde <- rev(bstar[2:(j + 1)])
-
         alp <- 1 / (2 * H + 1)
         varu <- bigK0del * (alp * yhat^2 + (1 - alp) * Y^2 + c)
         vbar <- varu / K00del

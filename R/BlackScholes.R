@@ -36,7 +36,6 @@ BSImpliedVolCall <- function(S0, K, T, r, C) {
 
 # This function also works with vectors of strikes and option values
 BSImpliedVolPut <- function(S0, K, T, r, P) {
-  nK <- length(K)
   sigmaL <- 1e-10
   PL <- BSFormulaPut(S0, K, T, r, sigmaL)
   sigmaH <- 10
