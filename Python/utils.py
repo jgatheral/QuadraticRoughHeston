@@ -1,9 +1,10 @@
+import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import norm
+import seaborn as sns
 from scipy.integrate import quad
 from scipy.interpolate import PchipInterpolator
-import matplotlib.pyplot as plt
-import seaborn as sns
+from scipy.stats import norm
+from black import black_otm_impvol_mc
 
 sns.set_style("whitegrid")
 
@@ -50,8 +51,8 @@ def plot_ivols_mc(ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None
         f = ivol_data["Fwd"][texp == t].iloc[0]
         k = np.log(ivol_data["Strike"][texp == t] / f)
         include = ~np.isnan(bid_vol) & (bid_vol > 0)
-        kmin = np.min(k[include])
-        kmax = np.max(k[include])
+        kmin = 0.9 * np.min(k[include])
+        kmax = 1.1 * np.max(k[include])
         ybottom = 0.6 * np.min(bid_vol[include])
         ytop = 1.2 * np.max(ask_vol[include])
         xrange = [kmin, kmax]
@@ -70,28 +71,28 @@ def plot_ivols_mc(ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None
             ax.set_ylabel("Implied Vol.")
 
         if mc_matrix is not None:
-            spots = mc_matrix[slice, :]
-            s0 = np.mean(spots)
 
             def vol_mc(k):
-                return bs_out(spots, t, s0 * np.exp(k))["BSV"]
+                return black_otm_impvol_mc(S=mc_matrix[slice, :], k=k, T=t)
 
-            atm_vols_mc[slice] = vol_mc(0)
-            sig_mc = vol_mc(0) * np.sqrt(t)
-            atm_skew_mc[slice] = (vol_mc(sig_mc / 10) - vol_mc(-sig_mc / 10)) / (
-                2 * sig_mc / 10
-            )
+            atm_vols_mc[slice] = vol_mc(0.0)
+            sig_mc = atm_vols_mc[slice] * np.sqrt(t)
+            sig_mc_right = vol_mc(sig_mc / 10.0)
+            sig_mc_left = vol_mc(-sig_mc / 10.0)
+            atm_skew_mc[slice] = (sig_mc_right - sig_mc_left) / (2.0 * sig_mc / 10.0)
             atm_curv_mc[slice] = (
-                vol_mc(sig_mc / 10) + vol_mc(-sig_mc / 10) - 2 * vol_mc(0)
-            ) / (2 * (sig_mc / 10) ** 2)
+                sig_mc_right + sig_mc_left - 2.0 * atm_vols_mc[slice]
+            ) / (2.0 * (sig_mc / 10.0) ** 2.0)
 
             def err_mc(k):
-                return bs_out(spots, t, s0 * np.exp(k))["err"]
+                return black_otm_impvol_mc(
+                    S=mc_matrix[slice, :], k=k, T=t, mc_error=True
+                )["error_95"]
 
             atm_err_mc[slice] = err_mc(0)
             if plot:
                 k_vals = np.linspace(kmin, kmax, 100)
-                vol_mc_vals = [vol_mc(k) for k in k_vals]
+                vol_mc_vals = np.array([vol_mc(k) for k in k_vals])
                 ax.plot(k_vals, vol_mc_vals, "orange", linewidth=2, label="MC")
 
         k_in = k[~np.isnan(mid_vol)]
@@ -152,11 +153,7 @@ def var_swap_robust(ivol_data, slices=None):
         sig_in_0 = sig_in_y[0]
         sig_in_1 = sig_in_y[-1]
 
-        def integ_var(y_out):
-            interp = PchipInterpolator(np.sort(y_in), sig_in_y**2)
-            return interp(y_out)
-
-        wbar_flat = quad(integ_var, y_min, y_max)[0]
+        wbar_flat = quad(PchipInterpolator(np.sort(y_in), sig_in_y**2), y_min, y_max)[0]
         res_mid = wbar_flat
         z_minus = zm_in[ord_y_in][0]
         res_lh = sig_in_0**2 * norm.cdf(z_minus)
@@ -184,63 +181,3 @@ def var_swap_robust(ivol_data, slices=None):
         "vs_bid": vs_bid,
         "vs_ask": vs_ask,
     }
-
-
-def gamma_swap_robust(ivol_data, slices=None):
-    """Robust estimation of gamma swap quotes."""
-    bid_vols = ivol_data["Bid"].astype(float)
-    ask_vols = ivol_data["Ask"].astype(float)
-    exp_dates = np.sort(np.unique(ivol_data["Texp"]))
-    n_slices = len(exp_dates)
-
-    if slices is not None:
-        n_slices = len(slices)
-    else:
-        slices = range(n_slices)
-
-    gs_mid = np.zeros(n_slices)
-    gs_bid = np.zeros(n_slices)
-    gs_ask = np.zeros(n_slices)
-
-    def gammaswap(k_in, vol_series, include, slice_idx):
-        t = exp_dates[slice_idx]
-        vol_in = vol_series[include]
-        sig_in = vol_in * np.sqrt(t)
-        zm_in = -k_in / sig_in - sig_in / 2
-        zp_in = zm_in + sig_in
-        y_in = norm.cdf(zp_in)
-        ord_y_in = np.argsort(y_in)
-        sig_in_y = sig_in[ord_y_in]
-        y_min = np.min(y_in)
-        y_max = np.max(y_in)
-        sig_in_0 = sig_in_y[0]
-        sig_in_1 = sig_in_y[-1]
-
-        def integ_var(y_out):
-            interp = PchipInterpolator(np.sort(y_in), sig_in_y**2)
-            return interp(y_out)
-
-        res_mid = quad(integ_var, y_min, y_max)[0]
-        z_minus = zp_in[ord_y_in][0]
-        res_lh = sig_in_0**2 * norm.cdf(z_minus)
-        z_plus = zp_in[ord_y_in][-1]
-        res_rh = sig_in_1**2 * norm.cdf(-z_plus)
-
-        res_vs = res_mid + res_lh + res_rh
-        return res_vs
-
-    for slice_idx in slices:
-        t = exp_dates[slice_idx]
-        texp = ivol_data["Texp"]
-        bid_vol = bid_vols[texp == t]
-        ask_vol = ask_vols[texp == t]
-        mid_vol = (bid_vol + ask_vol) / 2
-        f = ivol_data["Fwd"][texp == t].iloc[0]
-        k = np.log(ivol_data["Strike"][texp == t] / f)
-        include = ~np.isnan(mid_vol)
-        k_in = k[include]
-        gs_mid[slice_idx] = gammaswap(k_in, mid_vol, include, slice_idx) / t
-        gs_bid[slice_idx] = gammaswap(k_in, bid_vol, include, slice_idx) / t
-        gs_ask[slice_idx] = gammaswap(k_in, ask_vol, include, slice_idx) / t
-
-    return {"expiries": exp_dates, "gs_mid": gs_mid, "gs_bid": gs_bid, "gs_ask": gs_ask}
