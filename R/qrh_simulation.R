@@ -4,14 +4,16 @@
 #
 ######################################################################
 
+library(gsl)
+source("y_from_xi.R")
+source("gamma_kernel.R")
+
 
 ######################################################################
 #  QRH.sim implements the QRH scheme.
 ######################################################################
 QRH.sim <- function(params, xi) {
   function(paths, steps, expiries, output = "all", delvix = 1 / 12, nvix = 10) {
-    library(gsl)
-
     c <- params$c
     H <- params$al - 1 / 2
 
@@ -108,7 +110,6 @@ QRH.sim <- function(params, xi) {
 
 QRH.blip <- function(params, xi, h) {
   function(paths, steps, expiries) {
-    library(gsl)
     c <- params$c
     H <- params$al - 1 / 2
     Z.eps <- matrix(rnorm(steps * paths), nrow = steps, ncol = paths)
