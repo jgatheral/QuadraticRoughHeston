@@ -1,12 +1,12 @@
-#####################################################################################
+######################################################################
 #
 # Jim Gatheral, March 2025
 #
-#####################################################################################
+######################################################################
 
 
 ######################################################################
-#  QRH.sim implements the QRH scheme
+#  QRH.sim implements the QRH scheme.
 ######################################################################
 QRH.sim <- function(params, xi) {
   function(paths, steps, expiries, output = "all", delvix = 1 / 12, nvix = 10) {
@@ -102,8 +102,8 @@ QRH.sim <- function(params, xi) {
 
 
 ######################################################################
-# QRH.sim runs the QRH scheme with base and bipped forward
-# volatility curves to enable computation of the SSR
+# QRH.sim runs the QRH scheme with both the base and blipped forward
+# volatility curves, enabling the computation of the SSR.
 #######################################################################
 
 QRH.blip <- function(params, xi, h) {
