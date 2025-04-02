@@ -56,6 +56,10 @@ class QuadraticRoughHeston:
         )
         return (self.xi0(u) - integral - self.c) ** 0.5
 
+    def y0_shifted(self, u: np.ndarray, h: float) -> np.ndarray:
+        """Compute shifted or blipped y0(u)."""
+        return self.y0(u) - h * self.kernel(u)
+
     def resolvent_kernel(self, x):
         """Compute the resolvent kernel at x."""
         return (
@@ -120,7 +124,14 @@ class QuadraticRoughHeston:
             return res
 
     def simulate(
-        self, paths, steps, expiries, output="all", delvix=1.0 / 12.0, nvix=10
+        self,
+        paths,
+        steps,
+        expiries,
+        output="all",
+        delvix=1.0 / 12.0,
+        nvix=10,
+        h_ssr=None,
     ):
         if output not in ["all", "spx", "vix"]:
             raise ValueError("'output' must be one of ['all', 'spx', 'vix'].")
@@ -134,11 +145,21 @@ class QuadraticRoughHeston:
             raise ValueError("'nvix' must be positive.")
         if not isinstance(expiries, (list, np.ndarray)):
             raise ValueError("'expiries' must be a list or numpy array.")
+        # if h_ssr is not None:
+        #     h_ssr = np.atleast_1d(np.asarray(h_ssr))
+        #     if h_ssr.shape[0] == 1:
+        #         h_ssr = np.full_like(expiries, h_ssr[0])
+        #     if h_ssr.shape[0] != len(expiries):
+        #         raise ValueError(
+        #             "'h_ssr' must be a scalar or have the same length as 'expiries'."
+        #         )
+        # print(h_ssr)
 
         Z_eps = np.random.normal(size=(steps, paths))
         Z_chi = np.random.normal(size=(steps, paths))
         v0 = self.xi0(0.0)
         y0_0 = (self.xi0(0.0) - self.c) ** 0.5
+        alp = 1.0 / (2.0 * self.H + 1.0)
 
         def sim(expiry):
             dt = expiry / steps
@@ -159,10 +180,17 @@ class QuadraticRoughHeston:
             X = np.zeros(paths)
             w = np.zeros(paths)
 
+            if h_ssr is not None:
+                chi_h = np.zeros((steps, paths))
+                v_h = np.full(paths, v0)
+                Y_h = np.full(paths, y0_0)
+                yj_h = self.y0_shifted(tj, h_ssr(expiry))
+                yhat_h = np.full(paths, yj_h[0])
+                X_h = np.zeros(paths)
+                w_h = np.zeros(paths)
+
             for j in range(steps):
-                alp = 1.0 / (2.0 * self.H + 1.0)
-                varu = bigK0del * (alp * yhat**2 + (1 - alp) * Y**2 + self.c)
-                vbar = varu / K00del
+                vbar = bigK0del * (alp * yhat**2 + (1 - alp) * Y**2 + self.c) / K00del
                 sig_chi = np.sqrt(vbar * dt)
                 sig_eps = np.sqrt(vbar * K00del * (1.0 - rho_uchi**2))
                 chi[j, :] = sig_chi * Z_chi[j, :]
@@ -177,6 +205,30 @@ class QuadraticRoughHeston:
                     btilde = bstar[1 : j + 2][::-1]
                     yhat = yj[j + 1] + np.tensordot(btilde, chi[: j + 1, :], axes=1)
                 v = vf
+
+                if h_ssr is not None:
+                    vbar_h = (
+                        bigK0del
+                        * (alp * yhat_h**2 + (1 - alp) * Y_h**2 + self.c)
+                        / K00del
+                    )
+                    sig_chi_h = np.sqrt(vbar_h * dt)
+                    sig_eps_h = np.sqrt(vbar_h * K00del * (1.0 - rho_uchi**2))
+                    chi_h[j, :] = sig_chi_h * Z_chi[j, :]
+                    eps_h = sig_eps_h * Z_eps[j, :]
+                    u_h = beta_uchi * chi_h[j, :] + eps_h
+                    Y_h = yhat_h + u_h
+                    vf_h = Y_h**2 + self.c
+                    dw_h = (v_h + vf_h) / 2 * dt
+                    w_h += dw_h
+                    X_h -= 0.5 * dw_h + chi_h[j, :]
+                    if j < steps - 1:
+                        btilde = bstar[1 : j + 2][::-1]
+                        yhat_h = yj_h[j + 1] + np.tensordot(
+                            btilde, chi_h[: j + 1, :], axes=1
+                        )
+                    v_h = vf_h
+
             if output in ["vix", "all"]:
                 vix2 = 0.0
                 ds = delvix / nvix
@@ -198,12 +250,18 @@ class QuadraticRoughHeston:
                 ) / (2.0 * nvix)
                 vix = np.sqrt(vix2)
 
+            res_sim = {}
+
+            if output in ["all", "spx"]:
+                res_sim["X"] = X
+            if output in ["all", "vix"]:
+                res_sim["vix"] = vix
             if output == "all":
-                res_sim = {"v": v, "X": X, "w": w, "vix": vix}
-            elif output == "spx":
-                res_sim = {"X": X}
-            elif output == "vix":
-                res_sim = {"vix": vix}
+                res_sim["v"] = v
+                res_sim["w"] = w
+
+            if h_ssr is not None:
+                res_sim.update({"v_h": v_h, "X_h": X_h, "w_h": w_h})
 
             return res_sim
 
