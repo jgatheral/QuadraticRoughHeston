@@ -1,7 +1,7 @@
 # Quadratic Rough Heston
 
 We implement the hybrid simulation scheme from the paper Quadratic Rough Heston 
-available at: http://ssrn.com/abstract=???. 
+available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929)
 
 We provide easy-to-follow Jupyter notebooks in R and Python that show how 
 to simulate and use the quadratic rough Heston (QR Heston) model.
