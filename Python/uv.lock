@@ -1391,35 +1391,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "ipykernel" },
-    { name = "ipython" },
-    { name = "jupyter" },
-    { name = "matplotlib" },
-    { name = "numfracpy" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "scipy" },
-    { name = "seaborn" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ipykernel", specifier = ">=6.29.5" },
-    { name = "ipython", specifier = ">=9.0.2" },
-    { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "matplotlib", specifier = ">=3.10.1" },
-    { name = "numfracpy", specifier = ">=0.4" },
-    { name = "numpy", specifier = ">=2.2.4" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "scipy", specifier = ">=1.15.2" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-]
-
-[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -1567,6 +1538,35 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/80/a4/f0a4266ff2d94a87f7c32895b1716f9ac0edc0471d518462beeb0a9a94b5/pyzmq-26.3.0-pp311-pypy311_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2cf9ab0dff4dbaa2e893eb608373c97eb908e53b7d9793ad00ccbd082c0ee12f", size = 799507 },
     { url = "https://files.pythonhosted.org/packages/78/14/3d7d459f496fab8e487b23423ccba57abf7153a4fde0c3e000500fa02ff8/pyzmq-26.3.0-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3ec332675f6a138db57aad93ae6387953763f85419bdbd18e914cb279ee1c451", size = 758002 },
     { url = "https://files.pythonhosted.org/packages/22/65/cc1f0e1db1290770285430e36d51767e620487523e6a04094be637e55698/pyzmq-26.3.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:eb96568a22fe070590942cd4780950e2172e00fb033a8b76e47692583b1bd97c", size = 556425 },
+]
+
+[[package]]
+name = "quadratic-rough-heston"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "ipykernel" },
+    { name = "ipython" },
+    { name = "jupyter" },
+    { name = "matplotlib" },
+    { name = "numfracpy" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scipy" },
+    { name = "seaborn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ipykernel", specifier = ">=6.29.5" },
+    { name = "ipython", specifier = ">=9.0.2" },
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "matplotlib", specifier = ">=3.10.1" },
+    { name = "numfracpy", specifier = ">=0.4" },
+    { name = "numpy", specifier = ">=2.2.4" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "scipy", specifier = ">=1.15.2" },
+    { name = "seaborn", specifier = ">=0.13.2" },
 ]
 
 [[package]]
