@@ -2,7 +2,7 @@
 # In this version, each row of the array has to correspond to an option expiry.
 
 library(stinepack)
-source("BlackScholes.R")
+source("black_scholes.R")
 
 
 plotIvolsMC <- function(ivolData, sviMatrix = NULL, slices = NULL, mcMatrix = NULL,

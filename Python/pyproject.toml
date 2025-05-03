@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quadratic-rough-heston"
+authors = [
+    {name = "Florian Bourgey"},
+    {name = "Jim Gatheral"},
+]
+version = "0.1.0"
+description = "Implementation of the Quadratic Rough Heston model"
+readme = "../README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ipykernel>=6.29.5",
+    "ipython>=9.0.2",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.1",
+    "numfracpy>=0.4",
+    "numpy>=2.2.4",
+    "pandas>=2.2.3",
+    "scipy>=1.15.2",
+    "seaborn>=0.13.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
