@@ -67,7 +67,9 @@ class QuadraticRoughHeston:
             * np.exp(-2.0 * self.lam * x)
             * x ** (2.0 * self.H - 1.0)
             * Mittag_Leffler_two(
-                self.nu_hat**2 * x ** (2.0 * self.H), 2.0 * self.H, 2.0 * self.H
+                self.nu_hat**2 * x ** (2.0 * self.H),
+                2.0 * self.H,
+                2.0 * self.H,
             )
         )
 
