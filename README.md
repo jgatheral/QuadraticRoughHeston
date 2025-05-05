@@ -1,12 +1,12 @@
 # Quadratic Rough Heston
 
-We implement the hybrid simulation scheme described in the paper *Quadratic Rough Heston*, which is available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929).
+We implement the hybrid simulation scheme described in the paper *Quadratic Rough Heston*, available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929).
 
 This repository includes user-friendly Jupyter notebooks in both R and Python to demonstrate how to simulate and apply the Quadratic Rough Heston (QR Heston) model:
 
 - **`forward_variance_curve_construction.ipynb`**: Demonstrates the construction of the forward variance curve using implied volatility data.
-- **`qrheston_simulation.ipynb`**: Simulates the QR Heston model and visualizes SPX and VIX smiles, replicating Figures 1 and 2 from the paper.
-- **`qrheston_ssr.ipynb`**: Computes the SSR (Sum of Squared Residuals), reproducing Figure 3 from the paper.
+- **`qrheston_simulation.ipynb`**: Simulates the QR Heston model and visualizes SPX and VIX smiles.
+- **`qrheston_ssr.ipynb`**: Computes the SSR in the QR Heston model.
 
 ## Python Code Installation
 
