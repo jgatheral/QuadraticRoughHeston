@@ -1,37 +1,52 @@
 # Quadratic Rough Heston
 
-We implement the hybrid simulation scheme from the paper Quadratic Rough Heston 
-available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929)
+We implement the hybrid simulation scheme described in the paper *Quadratic Rough Heston*, which is available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929).
 
-We provide easy-to-follow Jupyter notebooks in R and Python that show how 
-to simulate and use the quadratic rough Heston (QR Heston) model.
+This repository includes user-friendly Jupyter notebooks in both R and Python to demonstrate how to simulate and apply the Quadratic Rough Heston (QR Heston) model:
 
-- `forward_variance_curve_construction.ipynb` shows how to construct the forward variance curve from implied volatility data.
+- **`forward_variance_curve_construction.ipynb`**: Demonstrates the construction of the forward variance curve using implied volatility data.
+- **`qrheston_simulation.ipynb`**: Simulates the QR Heston model and visualizes SPX and VIX smiles, replicating Figures 1 and 2 from the paper.
+- **`qrheston_ssr.ipynb`**: Computes the SSR (Sum of Squared Residuals), reproducing Figure 3 from the paper.
 
-- `qrheston_simulation.ipynb` simulates the QR Heston model and plots SPX and VIX smiles, reproducing Figures 1 and 2 of the paper.
+## Python Code Installation
 
-- `qrheston_ssr.ipynb` shows how to compute the SSR, reproducing Figure 3 of the paper.
+Follow these steps to set up the environment and install the required dependencies:
 
-## Installation for Python code
-
-To set up the environment and install dependencies, follow these steps:
-
-0. Clone the repository and cd into `/Python`
-
-1. Create a virtual environment:
-
+1. Clone the repository:
    ```bash
-   python -m venv .venv
+   git clone https://github.com/jgatheral/QuadraticRoughHeston.git
    ```
 
-2. Activate the virtual environment:
+2. Go to the `Python` directory:
+   ```bash
+   cd QuadraticRoughHeston/Python
+   ```
 
-    ```bash
-    source .venv/bin/activate
-    ```
+3. Create a virtual environment:
+   ```bash
+   python3 -m venv .venv
+   ```
 
-3. Install the required dependencies:
+4. Activate the virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
 
+5. Install the dependencies:
    ```bash
    pip install .
    ```
+
+6. You can then launch Jupyter Lab by running:
+   ```bash
+   jupyter lab
+   ```
+
+---
+
+* Alternatively, if you have [uv](https://docs.astral.sh/uv/) installed, you can simplify the process by running the following after step 2:
+   ```bash
+   uv sync
+   ```
+
+---
