@@ -1,6 +1,6 @@
 # Quadratic Rough Heston
 
-We implement the hybrid simulation scheme described in the paper *Quadratic Rough Heston*, available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929).
+We implement the hybrid simulation scheme described in the paper *The SSR under Quadratic Rough Heston*, available [here](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5239929).
 
 This repository includes user-friendly Jupyter notebooks in both R and Python to demonstrate how to simulate and apply the Quadratic Rough Heston (QR Heston) model:
 
@@ -10,7 +10,7 @@ This repository includes user-friendly Jupyter notebooks in both R and Python to
 
 ## Python Code Installation
 
-Follow these steps to set up the environment and install the required dependencies:
+Follow these steps to set up a virtual environment and install the required dependencies:
 
 1. Clone the repository:
    ```bash
