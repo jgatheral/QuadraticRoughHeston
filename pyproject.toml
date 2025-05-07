@@ -4,13 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quadratic-rough-heston"
-authors = [
-    {name = "Florian Bourgey"},
-    {name = "Jim Gatheral"},
-]
+authors = [{ name = "Florian Bourgey" }, { name = "Jim Gatheral" }]
 version = "0.1.0"
 description = "Implementation of the Quadratic Rough Heston model"
-readme = "../README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "ipykernel>=6.29.5",

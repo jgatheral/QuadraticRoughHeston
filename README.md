@@ -17,9 +17,9 @@ Follow these steps to set up a virtual environment and install the required depe
    git clone https://github.com/jgatheral/QuadraticRoughHeston.git
    ```
 
-2. Go to the `Python` directory:
+2. Go to the project directory:
    ```bash
-   cd QuadraticRoughHeston/Python
+   cd QuadraticRoughHeston
    ```
 
 3. Create a virtual environment:
@@ -50,3 +50,18 @@ Follow these steps to set up a virtual environment and install the required depe
    ```
 
 ---
+<<<<<<< HEAD
+=======
+
+## Using Google Colab
+
+You can also run the notebooks directly in Google Colab. To do this, follow these steps:
+1. Open the notebook you want to run in Google Colab. For example, to run the `qrheston_simulation.ipynb`, go to
+https://colab.research.google.com/github/jgatheral/QuadraticRoughHeston/blob/main/qrheston_simulation.ipynb
+1. Create a cell at the top of the notebook and run the following:
+```python
+!git clone https://colab.research.google.com/github/jgatheral/QuadraticRoughHeston
+%cd QuadraticRoughHeston/
+!pip install numfracpy
+```
+>>>>>>> b888b6f (update README and move python files at root)
