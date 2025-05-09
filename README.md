@@ -10,7 +10,8 @@ This repository includes user-friendly Jupyter notebooks in both R and Python to
 
 ## Python Code Installation
 
-Follow these steps to set up a virtual environment and install the required dependencies:
+Follow these steps to set up a virtual environment and install the required dependencies.
+A Python 3.11+ version is required.
 
 1. Clone the repository:
    ```bash
