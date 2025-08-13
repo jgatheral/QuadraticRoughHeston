@@ -17,7 +17,7 @@ class QuadraticRoughHeston:
         lam: float,
         al: float,
         n_quad: int = 20,
-    ) -> float:
+    ):
         if not (0.5 < al < 1):
             raise ValueError("'al' must be between 0.5 and 1.")
 
