@@ -14,6 +14,7 @@ dependencies = [
     "ipython>=9.0.2",
     "jupyter>=1.1.1",
     "matplotlib>=3.10.1",
+    "mpmath>=1.3.0",
     "numfracpy>=0.4",
     "numpy>=2.2.4",
     "pandas>=2.2.3",

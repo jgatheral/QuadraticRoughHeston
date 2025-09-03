@@ -261,6 +261,7 @@ class QuadraticRoughHeston:
             if output == "all":
                 res_sim["v"] = v
                 res_sim["w"] = w
+                res_sim["chi"] = chi
 
             if h_ssr is not None:
                 res_sim.update({"v_h": v_h, "X_h": X_h, "w_h": w_h})
