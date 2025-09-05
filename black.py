@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.stats import norm
 from scipy.optimize import root_scalar
+from scipy.stats import norm
 
 
 def black_price(K, T, F, vol, r=0.0, opttype=1):
@@ -68,7 +68,7 @@ def black_impvol_brentq(K, T, F, value, r=0.0, opttype=1):
     try:
         result = root_scalar(
             f=lambda vol: black_price(K, T, F, vol, r, opttype) - value,
-            bracket=[1e-10, 5.0],
+            bracket=[1e-10, 10.0],
             method="brentq",
         )
         return result.root if result.converged else np.nan
