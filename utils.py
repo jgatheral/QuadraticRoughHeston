@@ -4,9 +4,36 @@ import seaborn as sns
 from scipy.integrate import quad
 from scipy.interpolate import PchipInterpolator
 from scipy.stats import norm
+
 from black import black_otm_impvol_mc
 
 sns.set_style("whitegrid")
+
+
+def gauss_legendre(a: float, b: float, n: int) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the Gauss-Legendre quadrature points and weights on the interval [a, b].
+
+    Parameters
+    ----------
+    a : float
+        Lower bound of the integration interval.
+    b : float
+        Upper bound of the integration interval.
+    n : int
+        Number of quadrature points.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        A tuple containing two 1-D arrays:
+        - Quadrature points on [a, b].
+        - Quadrature weights on [a, b].
+    """
+    knots, weights = np.polynomial.legendre.leggauss(n)
+    knots_a_b = 0.5 * (b - a) * knots + 0.5 * (b + a)
+    weights_a_b = 0.5 * (b - a) * weights
+    return knots_a_b, weights_a_b
 
 
 def plot_ivols_mc(ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None):
