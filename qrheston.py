@@ -129,12 +129,40 @@ class QuadraticRoughHeston:
         self,
         paths,
         steps,
-        expiries,
+        spx_expiries=None,
+        vix_expiries=None,
         output="all",
         delvix=1.0 / 12.0,
         nvix=10,
         h_ssr=None,
     ):
+        """
+        Simulate sample paths for the Quadratic Rough Heston model.
+
+        Parameters
+        ----------
+        paths : int
+            Number of Monte Carlo paths.
+        steps : int
+            Number of time steps per path.
+        spx_expiries : array_like or None
+            Expiry times for SPX outputs.
+        vix_expiries : array_like or None
+            Expiry times for VIX outputs.
+        output : {'all', 'spx', 'vix'}, default 'all'
+            Which outputs to return: all, only SPX, or only VIX.
+        delvix : float, default 1/12
+            VIX averaging window length.
+        nvix : int, default 10
+            Number of quadrature points for VIX calculation.
+        h_ssr : callable or None, optional
+            Function for shifted y0 (for SSR).
+
+        Returns
+        -------
+        dict
+            Dictionary mapping each expiry to simulation results.
+        """
         if output not in ["all", "spx", "vix"]:
             raise ValueError("'output' must be one of ['all', 'spx', 'vix'].")
         if not paths > 0:
@@ -145,18 +173,12 @@ class QuadraticRoughHeston:
             raise ValueError("'delvix' must be positive.")
         if not nvix > 0:
             raise ValueError("'nvix' must be positive.")
-        if not isinstance(expiries, (list, np.ndarray)):
-            raise ValueError("'expiries' must be a list or numpy array.")
-        # if h_ssr is not None:
-        #     h_ssr = np.atleast_1d(np.asarray(h_ssr))
-        #     if h_ssr.shape[0] == 1:
-        #         h_ssr = np.full_like(expiries, h_ssr[0])
-        #     if h_ssr.shape[0] != len(expiries):
-        #         raise ValueError(
-        #             "'h_ssr' must be a scalar or have the same length as 'expiries'."
-        #         )
-        # print(h_ssr)
+        if spx_expiries is None and vix_expiries is None:
+            raise ValueError(
+                "At least one of spx_expiries or vix_expiries must be provided."
+            )
 
+        # Prepare random numbers
         Z_eps = np.random.normal(size=(steps, paths))
         Z_chi = np.random.normal(size=(steps, paths))
         v0 = self.xi0(0.0)
@@ -164,6 +186,7 @@ class QuadraticRoughHeston:
         alp = 1.0 / (2.0 * self.H + 1.0)
 
         def sim(expiry):
+            print(f"Simulating expiry = {expiry:.4f}")
             dt = expiry / steps
             K0del = float(self.integral_K0(dt))
             K00del = float(self.integral_K00(dt))
@@ -268,5 +291,27 @@ class QuadraticRoughHeston:
 
             return res_sim
 
-        sim_out = {expiry: sim(expiry) for expiry in expiries}
-        return sim_out
+        results = {}
+
+        # Convert to tuple for comparison and set logic
+        spx_expiries_tuple = tuple(spx_expiries) if spx_expiries is not None else ()
+        vix_expiries_tuple = tuple(vix_expiries) if vix_expiries is not None else ()
+
+        if (
+            spx_expiries_tuple
+            and vix_expiries_tuple
+            and spx_expiries_tuple == vix_expiries_tuple
+        ):
+            # Only compute once if expiries are the same
+            sim_out = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
+            results["spx"] = {k: {"X": v["X"]} for k, v in sim_out.items()}
+            results["vix"] = {k: {"vix": v["vix"]} for k, v in sim_out.items()}
+            if output == "all":
+                results["all"] = sim_out
+        else:
+            if spx_expiries is not None:
+                results["spx"] = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
+            if vix_expiries is not None:
+                results["vix"] = {expiry: sim(expiry) for expiry in vix_expiries_tuple}
+
+        return results

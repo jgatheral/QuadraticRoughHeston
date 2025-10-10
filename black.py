@@ -146,6 +146,10 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
         low[~mask] = mid[~mask]
         mid = 0.5 * (low + high)
 
+    # Set mid to NaN where the tolerance is not met
+    mid = np.where(np.abs(diff) < TOL, mid, np.nan)
+    return mid
+
     raise ValueError("Implied volatility did not converge.")
 
 
