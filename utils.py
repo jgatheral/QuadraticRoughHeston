@@ -36,7 +36,9 @@ def gauss_legendre(a: float, b: float, n: int) -> tuple[np.ndarray, np.ndarray]:
     return knots_a_b, weights_a_b
 
 
-def plot_ivols_mc(ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None):
+def plot_ivols_mc(
+    ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None, return_fig=False
+):
     """Plot implied vols."""
 
     bid_vols = ivol_data["Bid"].astype(float)
@@ -140,7 +142,7 @@ def plot_ivols_mc(ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None
         plt.tight_layout()
         plt.show()
 
-    return {
+    res = {
         "expiries": exp_dates,
         "atm_vols": atm_vols,
         "atm_skew": atm_skew,
@@ -149,6 +151,9 @@ def plot_ivols_mc(ivol_data, slices=None, mc_matrix=None, plot=True, colnum=None
         "atm_skew_mc": atm_skew_mc,
         "atm_err_mc": atm_err_mc,
     }
+    if return_fig:
+        res["fig"] = fig
+    return res
 
 
 def var_swap_robust(ivol_data, slices=None):

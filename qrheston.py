@@ -131,7 +131,7 @@ class QuadraticRoughHeston:
         steps,
         spx_expiries=None,
         vix_expiries=None,
-        output="all",
+        output=None,
         delvix=1.0 / 12.0,
         nvix=10,
         h_ssr=None,
@@ -152,7 +152,7 @@ class QuadraticRoughHeston:
         output : {'all', 'spx', 'vix'}, default 'all'
             Which outputs to return: all, only SPX, or only VIX.
         delvix : float, default 1/12
-            VIX averaging window length.
+            VIX window length.
         nvix : int, default 10
             Number of quadrature points for VIX calculation.
         h_ssr : callable or None, optional
@@ -163,8 +163,8 @@ class QuadraticRoughHeston:
         dict
             Dictionary mapping each expiry to simulation results.
         """
-        if output not in ["all", "spx", "vix"]:
-            raise ValueError("'output' must be one of ['all', 'spx', 'vix'].")
+        # if output not in ["all", "spx", "vix"]:
+        #     raise ValueError("'output' must be one of ['all', 'spx', 'vix'].")
         if not paths > 0:
             raise ValueError("'paths' must be postive.")
         if not steps > 0:
@@ -186,7 +186,7 @@ class QuadraticRoughHeston:
         alp = 1.0 / (2.0 * self.H + 1.0)
 
         def sim(expiry):
-            print(f"Simulating expiry = {expiry:.4f}")
+            print(f"expiry: {expiry:.4f}")
             dt = expiry / steps
             K0del = float(self.integral_K0(dt))
             K00del = float(self.integral_K00(dt))
@@ -303,6 +303,7 @@ class QuadraticRoughHeston:
             and spx_expiries_tuple == vix_expiries_tuple
         ):
             # Only compute once if expiries are the same
+            print("Simulating SPX and VIX expiries...")
             sim_out = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
             results["spx"] = {k: {"X": v["X"]} for k, v in sim_out.items()}
             results["vix"] = {k: {"vix": v["vix"]} for k, v in sim_out.items()}
@@ -310,8 +311,14 @@ class QuadraticRoughHeston:
                 results["all"] = sim_out
         else:
             if spx_expiries is not None:
+                print("Simulating SPX expiries...")
+                if output != "all":
+                    output = "spx"
                 results["spx"] = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
             if vix_expiries is not None:
+                print("Simulating VIX expiries...")
+                if output != "all":
+                    output = "vix"
                 results["vix"] = {expiry: sim(expiry) for expiry in vix_expiries_tuple}
 
         return results
