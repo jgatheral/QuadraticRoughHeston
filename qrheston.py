@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 from numfracpy import Mittag_Leffler_two
@@ -7,7 +7,31 @@ from scipy.special import gamma, gammainc, roots_jacobi
 
 
 class QuadraticRoughHeston:
-    """Quadratic Rough Heston model."""
+    """
+    Quadratic Rough Heston model implementation.
+
+    Parameters
+    ----------
+    xi0 : callable
+        Initial forward variance curve function.
+    c : float
+        Constant variance floor parameter.
+    nu : float
+        Volatility of volatility parameter.
+    lam : float
+        Mean reversion rate parameter.
+    al : float
+        Roughness parameter, must be in (0.5, 1).
+    n_quad : int, default 20
+        Number of quadrature points for numerical integration.
+
+    Attributes
+    ----------
+    H : float
+        Hurst parameter, equal to al - 0.5.
+    nu_hat : float
+        Scaled volatility parameter.
+    """
 
     def __init__(
         self,
@@ -37,11 +61,35 @@ class QuadraticRoughHeston:
         self.nu_hat = self.nu * gamma(2.0 * self.H) ** 0.5 / gamma(self.al)
 
     def kernel(self, x: np.ndarray) -> np.ndarray:
-        """Gamma kernel."""
+        """
+        Compute the gamma kernel function.
+
+        Parameters
+        ----------
+        x : array_like
+            Input values where x >= 0.
+
+        Returns
+        -------
+        ndarray
+            Gamma kernel values at x.
+        """
         return (self.nu / gamma(self.al)) * x ** (self.al - 1) * np.exp(-self.lam * x)
 
     def y0(self, u):
-        """Compute y0(u) from xi0(u)."""
+        """
+        Compute y0(u) from initial variance curve xi0(u).
+
+        Parameters
+        ----------
+        u : array_like
+            Time points where u >= 0.
+
+        Returns
+        -------
+        ndarray
+            y0(u) values at u.
+        """
         u = np.atleast_1d(u)
         integral = np.zeros_like(u)
         mask = u > 0
@@ -57,11 +105,35 @@ class QuadraticRoughHeston:
         return (self.xi0(u) - integral - self.c) ** 0.5
 
     def y0_shifted(self, u: np.ndarray, h: float) -> np.ndarray:
-        """Compute shifted or blipped y0(u)."""
+        """
+        Compute shifted y0(u) from initial variance curve xi0(u) for SSR computation.
+
+        Parameters
+        ----------
+        u : array_like
+            Time points where u >= 0.
+
+        Returns
+        -------
+        ndarray
+            Shifted y0(u) values at u.
+        """
         return self.y0(u) - h * self.kernel(u)
 
     def resolvent_kernel(self, x):
-        """Compute the resolvent kernel at x."""
+        """
+        Compute the resolvent kernel at x.
+
+        Parameters
+        ----------
+        x : float or array_like
+            Input values where x >= 0.
+
+        Returns
+        -------
+        float or ndarray
+            Resolvent kernel values using Mittag-Leffler function.
+        """
         return (
             self.nu_hat**2
             * np.exp(-2.0 * self.lam * x)
@@ -75,7 +147,17 @@ class QuadraticRoughHeston:
 
     def integral_bigK0(self, x):
         r"""
-        Compute the integral \int_0^x resolvent_kernel(s) ds.
+        Compute integral of resolvent kernel from 0 to x.
+
+        Parameters
+        ----------
+        x : float
+            Upper integration limit, must be non-negative.
+
+        Returns
+        -------
+        float
+            Integral values at x.
         """
         if x > 0:
             return integrate.quad(lambda x: self.resolvent_kernel(x), 0.0, x)[0]
@@ -86,9 +168,23 @@ class QuadraticRoughHeston:
 
     def integral_K00(self, x, quad_scipy=False):
         r"""
-        Compute the integral K00 at x. It corresponds to the integral
-        \int_0^x k(s)^2 ds where k(s) is the gamma kernel function at s.
-        Note: in SciPy, gammainc is the regularized lower incomplete gamma function.
+        Compute integral of squared gamma kernel from 0 to x.
+
+        Parameters
+        ----------
+        x : array_like
+            Integration limits, must be non-negative.
+        quad_scipy : bool, default False
+            If True, use SciPy quadrature. Otherwise, use analytical formula.
+
+        Returns
+        -------
+        ndarray
+            Integral values at x.
+
+        Notes
+        -----
+        In SciPy, gammainc is the regularized lower incomplete gamma function.
         """
         if quad_scipy:
             return integrate.quad(lambda s: self.kernel(s) ** 2, 0.0, x)[0]
@@ -107,8 +203,19 @@ class QuadraticRoughHeston:
 
     def integral_K0(self, x, quad_scipy=False):
         r"""
-        Compute the integral K0 at x. It corresponds to the integral \int_0^x k(s) ds
-        where k(s) is the gamma kernel function at s.
+            Compute integral of gamma kernel from 0 to x.
+
+        Parameters
+        ----------
+        x : array_like
+            Integration limits, must be non-negative.
+        quad_scipy : bool, default False
+            If True, use SciPy quadrature. Otherwise, use analytical formula.
+
+        Returns
+        -------
+        ndarray
+            Integral values at x.
         """
         if quad_scipy:
             return integrate.quad(lambda s: self.kernel(s), 0.0, x)[0]
@@ -135,6 +242,7 @@ class QuadraticRoughHeston:
         delvix=1.0 / 12.0,
         nvix=10,
         h_ssr=None,
+        seed=None,
     ):
         """
         Simulate sample paths for the Quadratic Rough Heston model.
@@ -149,22 +257,24 @@ class QuadraticRoughHeston:
             Expiry times for SPX outputs.
         vix_expiries : array_like or None
             Expiry times for VIX outputs.
-        output : {'all', 'spx', 'vix'}, default 'all'
-            Which outputs to return: all, only SPX, or only VIX.
+        output : {'all', 'spx', 'vix'} or None, default None
+            Which outputs to return. If None, inferred from expiries.
         delvix : float, default 1/12
-            VIX window length.
+            VIX averaging window length.
         nvix : int, default 10
             Number of quadrature points for VIX calculation.
         h_ssr : callable or None, optional
-            Function for shifted y0 (for SSR).
+            Function for shifted y0 (for SSR). Takes expiry as argument.
+        seed : int or None, optional
+            Random seed for reproducibility.
 
         Returns
         -------
         dict
-            Dictionary mapping each expiry to simulation results.
+            Dictionary with keys 'spx' and/or 'vix', each mapping expiry
+            times to simulation results. If expiries are identical,
+            computations are shared to avoid duplication.
         """
-        # if output not in ["all", "spx", "vix"]:
-        #     raise ValueError("'output' must be one of ['all', 'spx', 'vix'].")
         if not paths > 0:
             raise ValueError("'paths' must be postive.")
         if not steps > 0:
@@ -177,6 +287,8 @@ class QuadraticRoughHeston:
             raise ValueError(
                 "At least one of spx_expiries or vix_expiries must be provided."
             )
+        if seed is not None:
+            np.random.seed(seed)
 
         # Prepare random numbers
         Z_eps = np.random.normal(size=(steps, paths))
@@ -186,6 +298,25 @@ class QuadraticRoughHeston:
         alp = 1.0 / (2.0 * self.H + 1.0)
 
         def sim(expiry):
+            """
+            Simulate single expiry for Quadratic Rough Heston model.
+
+            Parameters
+            ----------
+            expiry : float
+                Time to expiration.
+
+            Returns
+            -------
+            dict
+                Simulation results with keys depending on output parameter:
+                - 'X': SPX log price increments
+                - 'vix': VIX values
+                - 'v': variance process (if output='all')
+                - 'w': integrated variance (if output='all')
+                - 'chi': volatility shocks (if output='all')
+                - '_h' variants if h_ssr is provided
+            """
             print(f"expiry: {expiry:.4f}")
             dt = expiry / steps
             K0del = float(self.integral_K0(dt))
