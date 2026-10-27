@@ -4,6 +4,9 @@ import numpy as np
 from numfracpy import Mittag_Leffler_two
 from scipy import integrate
 from scipy.special import gamma, gammainc, roots_jacobi
+from scipy.stats import norm
+
+from black import black_otm_impvol_mc
 
 
 class QuadraticRoughHeston:
@@ -190,6 +193,12 @@ class QuadraticRoughHeston:
             return integrate.quad(lambda s: self.kernel(s) ** 2, 0.0, x)[0]
         else:
             x = np.atleast_1d(np.asarray(x))
+            if self.lam == 0.0:
+                return (
+                    (self.nu / gamma(self.al)) ** 2
+                    * x ** (2.0 * self.H)
+                    / (2.0 * self.H)
+                )
             mask = x > 0
             res = np.empty_like(x)
             res[mask] = (
@@ -221,6 +230,8 @@ class QuadraticRoughHeston:
             return integrate.quad(lambda s: self.kernel(s), 0.0, x)[0]
         else:
             x = np.atleast_1d(np.asarray(x))
+            if self.lam == 0.0:
+                return (self.nu / gamma(self.al)) * x**self.al / self.al
             mask = x > 0
             res = np.empty_like(x)
             res[mask] = (
@@ -291,8 +302,8 @@ class QuadraticRoughHeston:
             np.random.seed(seed)
 
         # Prepare random numbers
-        Z_eps = np.random.normal(size=(steps, paths))
-        Z_chi = np.random.normal(size=(steps, paths))
+        # Z_eps = np.random.normal(size=(steps, paths))
+        # Z_chi = np.random.normal(size=(steps, paths))
         v0 = self.xi0(0.0)
         y0_0 = (self.xi0(0.0) - self.c) ** 0.5
         alp = 1.0 / (2.0 * self.H + 1.0)
@@ -319,8 +330,8 @@ class QuadraticRoughHeston:
             """
             print(f"expiry: {expiry:.4f}")
             dt = expiry / steps
-            K0del = float(self.integral_K0(dt))
-            K00del = float(self.integral_K00(dt))
+            K0del = self.integral_K0(dt).item()
+            K00del = self.integral_K00(dt).item()
             bigK0del = self.integral_bigK0(dt)
             tj = np.arange(1, steps + 1) * dt
             yj = self.y0(tj)
@@ -346,11 +357,13 @@ class QuadraticRoughHeston:
                 w_h = np.zeros(paths)
 
             for j in range(steps):
+                Z_eps = np.random.normal(size=(paths))
+                Z_chi = np.random.normal(size=(paths))
                 vbar = bigK0del * (alp * yhat**2 + (1 - alp) * Y**2 + self.c) / K00del
                 sig_chi = np.sqrt(vbar * dt)
                 sig_eps = np.sqrt(vbar * K00del * (1.0 - rho_uchi**2))
-                chi[j, :] = sig_chi * Z_chi[j, :]
-                eps = sig_eps * Z_eps[j, :]
+                chi[j, :] = sig_chi * Z_chi
+                eps = sig_eps * Z_eps
                 u = beta_uchi * chi[j, :] + eps
                 Y = yhat + u
                 vf = Y**2 + self.c
@@ -370,8 +383,8 @@ class QuadraticRoughHeston:
                     )
                     sig_chi_h = np.sqrt(vbar_h * dt)
                     sig_eps_h = np.sqrt(vbar_h * K00del * (1.0 - rho_uchi**2))
-                    chi_h[j, :] = sig_chi_h * Z_chi[j, :]
-                    eps_h = sig_eps_h * Z_eps[j, :]
+                    chi_h[j, :] = sig_chi_h * Z_chi
+                    eps_h = sig_eps_h * Z_eps
                     u_h = beta_uchi * chi_h[j, :] + eps_h
                     Y_h = yhat_h + u_h
                     vf_h = Y_h**2 + self.c
@@ -385,7 +398,7 @@ class QuadraticRoughHeston:
                         )
                     v_h = vf_h
 
-            if output in ["vix", "all"]:
+            if output in ["vix", "spx-vix", "all"]:
                 vix2 = 0.0
                 ds = delvix / nvix
                 for k in range(nvix):
@@ -408,9 +421,9 @@ class QuadraticRoughHeston:
 
             res_sim = {}
 
-            if output in ["all", "spx"]:
+            if output in ["spx", "spx-vix", "all"]:
                 res_sim["X"] = X
-            if output in ["all", "vix"]:
+            if output in ["vix", "spx-vix", "all"]:
                 res_sim["vix"] = vix
             if output == "all":
                 res_sim["v"] = v
@@ -453,3 +466,45 @@ class QuadraticRoughHeston:
                 results["vix"] = {expiry: sim(expiry) for expiry in vix_expiries_tuple}
 
         return results
+
+    def compute_ssr(self, expiries, paths, steps, h_ssr, seed=None):
+        "Compute SSR for expiries"
+
+        sim = self.simulate(
+            paths=paths,
+            steps=steps,
+            spx_expiries=expiries,
+            output="spx",
+            h_ssr=h_ssr,
+            seed=seed,
+        )
+
+        # simulate MC paths (normal and shifted)
+        S_matrix = np.array([np.exp(sim["spx"][T]["X"]) for T in expiries])
+        S_h_matrix = np.array([np.exp(sim["spx"][T]["X_h"]) for T in expiries])
+
+        # compute regression coefficient beta
+        atm_impvols_mc = np.array(
+            [
+                black_otm_impvol_mc(S_matrix[idx, :], k=0.0, T=T)
+                for idx, T in enumerate(expiries)
+            ]
+        ).flatten()
+        atm_impvols_h_mc = np.array(
+            [
+                black_otm_impvol_mc(S_h_matrix[idx, :], k=0.0, T=T)
+                for idx, T in enumerate(expiries)
+            ]
+        ).flatten()
+        beta = (atm_impvols_h_mc - atm_impvols_mc) / h_ssr(expiries)
+
+        # compute atm skew
+        w = expiries * atm_impvols_mc**2
+        atm_digit = (S_matrix >= S_matrix.mean(axis=1, keepdims=True)).mean(axis=1)
+        atm_skew = norm.cdf(-0.5 * w**0.5) - atm_digit
+        atm_skew /= expiries**0.5 * norm.pdf(-0.5 * w**0.5)
+
+        # compute ssr
+        ssr = beta / atm_skew
+
+        return ssr

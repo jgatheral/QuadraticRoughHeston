@@ -71,18 +71,32 @@ xi.curve.smooth <- function(expiries, w.in, xi = TRUE, eps = 0) {
   for (i in seq(1, n)) {
     A[i, ] <- phi(expiries[i])(expiries)
   }
-  A.inv <- solve(A)
-  obj.1 <- function(err.vec) {
-    v <- w.in + 2 * sqrt(w.in) * err.vec * sqrt(expiries)
-    return(t(v) %*% A.inv %*% v) # This code used to invert A each time!
+  # Evaluate v' A^-1 v as a squared norm. An explicit inverse and numerical
+  # gradients are unstable on the closely spaced market expiry grids.
+  chol.A <- chol(A)
+  scale <- 2 * sqrt(w.in * expiries)
+  transformed <- function(err.vec) {
+    forwardsolve(t(chol.A), w.in + scale * err.vec)
   }
-  res.optim <- optim(rep(0, n), obj.1,
-    method = "L-BFGS-B",
-    lower = rep(-eps, n), upper = rep(eps, n)
-  )
-  err.vec <- res.optim$par
-  w.in.1 <- w.in + 2 * sqrt(w.in) * err.vec * sqrt(expiries)
-  Z <- A.inv %*% w.in.1
+  obj.1 <- function(err.vec) {
+    sum(transformed(err.vec)^2)
+  }
+  grad.1 <- function(err.vec) {
+    2 * scale * backsolve(chol.A, transformed(err.vec))
+  }
+  err.vec <- rep(0, n)
+  if (eps > 0) {
+    res.optim <- optim(err.vec, obj.1, grad.1,
+      method = "L-BFGS-B",
+      lower = rep(-eps, n), upper = rep(eps, n),
+      control = list(lmm = 20, factr = 1e3, pgtol = 1e-8, maxit = 50000)
+    )
+    if (res.optim$convergence != 0)
+      stop("Forward variance curve fit failed: ", res.optim$message)
+    err.vec <- res.optim$par
+  }
+  w.in.1 <- w.in + scale * err.vec
+  Z <- backsolve(chol.A, forwardsolve(t(chol.A), w.in.1))
   curve.raw <- function(x) {
     sum.curve <- 0
     sum.curve.deri <- 0

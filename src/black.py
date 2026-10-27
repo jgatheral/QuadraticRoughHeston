@@ -153,7 +153,7 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
     raise ValueError("Implied volatility did not converge.")
 
 
-def black_otm_impvol_mc(S, k, T, mc_error=False):
+def black_otm_impvol_mc(S, k, T, mc_error=False, return_atm_skew=False):
     """
     Calculate Black implied volatility using Monte Carlo simulated stock prices and
     out-of-the-money (OTM) prices.
@@ -184,6 +184,18 @@ def black_otm_impvol_mc(S, k, T, mc_error=False):
     """
     k = np.atleast_1d(np.asarray(k))
     F = np.mean(S)
+
+    if return_atm_skew:
+        # compute atm skew
+        atm_call = np.mean(np.maximum(S - F, 0.0))
+        atm_impvol = black_impvol(K=F, T=T, F=F, value=atm_call, opttype=1)
+        w = T * atm_impvol**2
+        atm_digit = np.mean(S >= F)
+        atm_skew = norm.cdf(-0.5 * w**0.5) - atm_digit
+        atm_skew /= T**0.5 * norm.pdf(-0.5 * w**0.5)
+
+        return atm_impvol, atm_skew
+
     K = F * np.exp(k)
     opttype = 2 * (K >= F) - 1
     payoff = np.maximum(opttype[None, :] * (S[:, None] - K[None, :]), 0.0)
