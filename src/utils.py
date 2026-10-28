@@ -24,34 +24,27 @@ def kernel_exp_approx(
     H: float, lam: float, a: float, b: float, N: int, eps: float = 1e-3
 ):
     """
-    This function implements a numerical approximation technique that represents
-    a kernel function as a weighted sum of exponentials. The method constructs
-    a Hankel matrix from kernel evaluations, performs SVD decomposition, and
-    solves a least squares problem to find optimal weights and decay rates.
+    Approximate the gamma kernel on [a, b] by a sum of exponentials.
 
     Parameters
     ----------
     H : float
-        The Hurst parameter for the kernel function.
+        Hurst parameter.
     lam : float
-        The lambda parameter for the kernel function.
-    a : float
-        Left endpoint of the approximation interval.
-    b : float
-        Right endpoint of the approximation interval.
+        Exponential damping rate.
+    a, b : float
+        Approximation interval endpoints.
     N : int
-        Number of discretization points (2*N+1 points will be used).
-    eps : float, optional
-        Tolerance parameter for truncating singular values (default: 1e-3).
-        Controls the approximation accuracy.
+        Grid resolution; uses 2*N+1 uniformly spaced nodes.
+    eps : float, default 1e-3
+        Singular-value cutoff relative to the norm of the sampled kernel.
 
     Returns
     -------
     c_optim_tilde : ndarray
-        Optimized weight coefficients for the exponential approximation,
-        transformed to the interval [a,b].
+        Weights in sum_i c[i] * exp(-gammas[i] * x).
     gammas_tilde : ndarray
-        Decay rates for the exponential terms, transformed to the interval [a,b].
+        Exponential decay rates.
 
     Notes
     -----

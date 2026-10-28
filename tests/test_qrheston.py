@@ -52,3 +52,50 @@ def test_joint_expiries_infer_output(model):
     explicit = model.simulate(**kwargs, output="spx-vix")
     for asset, key in [("spx", "X"), ("vix", "vix")]:
         np.testing.assert_array_equal(inferred[asset][0.1][key], explicit[asset][0.1][key])
+
+
+@pytest.mark.parametrize("output", [None, "spx-vix", "all"])
+def test_joint_expiries_preserve_shifted_spx(model, output):
+    expiries = [0.05, 0.1]
+    kwargs = dict(
+        paths=16, steps=4, spx_expiries=expiries, nvix=2,
+        h_ssr=lambda t: 0.01 * np.sqrt(t), seed=1234,
+    )
+    joint = model.simulate(**kwargs, vix_expiries=expiries, output=output)
+    spx_only = model.simulate(**kwargs, output="spx")
+    for expiry in expiries:
+        for key in ("X", "X_h", "v_h", "w_h"):
+            np.testing.assert_array_equal(
+                joint["spx"][expiry][key], spx_only["spx"][expiry][key]
+            )
+
+
+@pytest.mark.parametrize("vix_expiries", [[0.05, 0.1], [0.075, 0.15]])
+@pytest.mark.parametrize("output", ["spx", "vix"])
+def test_explicit_output_selects_asset(model, vix_expiries, output):
+    kwargs = dict(paths=16, steps=4, nvix=2, seed=1234)
+    expiries = dict(spx_expiries=[0.05, 0.1], vix_expiries=vix_expiries)
+    selected = model.simulate(**kwargs, **expiries, output=output)
+    asset_expiries = {f"{output}_expiries": expiries[f"{output}_expiries"]}
+    standalone = model.simulate(**kwargs, **asset_expiries, output=output)
+    assert selected.keys() == {output}
+    assert selected[output].keys() == standalone[output].keys()
+    for expiry, values in standalone[output].items():
+        assert selected[output][expiry].keys() == values.keys()
+        for key, value in values.items():
+            np.testing.assert_array_equal(selected[output][expiry][key], value)
+
+
+@pytest.mark.parametrize(
+    "output, expiries",
+    [
+        ("unknown", {"spx_expiries": [0.1]}),
+        ("spx", {"vix_expiries": [0.1]}),
+        ("vix", {"spx_expiries": [0.1]}),
+        ("spx-vix", {"spx_expiries": [0.1]}),
+        ("spx-vix", {"vix_expiries": [0.1]}),
+    ],
+)
+def test_invalid_output_request(model, output, expiries):
+    with pytest.raises(ValueError, match="output"):
+        model.simulate(paths=16, steps=4, output=output, **expiries)

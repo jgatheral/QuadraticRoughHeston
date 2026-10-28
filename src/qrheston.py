@@ -272,6 +272,7 @@ class QuadraticRoughHeston:
             Expiry times for VIX outputs.
         output : {'all', 'spx', 'vix', 'spx-vix'} or None, default None
             Which outputs to return. If None, inferred from expiries.
+            Explicit asset selections require the corresponding expiry lists.
         delvix : float, default 1/12
             VIX averaging window length.
         nvix : int, default 10
@@ -286,7 +287,8 @@ class QuadraticRoughHeston:
         dict
             Dictionary with keys 'spx' and/or 'vix', each mapping expiry
             times to simulation results. If expiries are identical,
-            computations are shared to avoid duplication.
+            computations are shared to avoid duplication. SPX results include
+            'X_h', 'v_h', and 'w_h' when h_ssr is provided.
         """
         if not paths > 0:
             raise ValueError("'paths' must be positive.")
@@ -296,10 +298,27 @@ class QuadraticRoughHeston:
             raise ValueError("'delvix' must be positive.")
         if not nvix > 0:
             raise ValueError("'nvix' must be positive.")
-        if spx_expiries is None and vix_expiries is None:
+        spx_expiries_tuple = tuple(spx_expiries) if spx_expiries is not None else ()
+        vix_expiries_tuple = tuple(vix_expiries) if vix_expiries is not None else ()
+        if not spx_expiries_tuple and not vix_expiries_tuple:
             raise ValueError(
                 "At least one of spx_expiries or vix_expiries must be provided."
             )
+        if output is None:
+            if spx_expiries_tuple and vix_expiries_tuple:
+                output = "spx-vix"
+            else:
+                output = "spx" if spx_expiries_tuple else "vix"
+        if output not in ("all", "spx", "vix", "spx-vix"):
+            raise ValueError("'output' must be 'all', 'spx', 'vix', or 'spx-vix'.")
+        if output in ("spx", "spx-vix") and not spx_expiries_tuple:
+            raise ValueError(f"'spx_expiries' must be provided for output={output!r}.")
+        if output in ("vix", "spx-vix") and not vix_expiries_tuple:
+            raise ValueError(f"'vix_expiries' must be provided for output={output!r}.")
+        if output == "spx":
+            vix_expiries_tuple = ()
+        elif output == "vix":
+            spx_expiries_tuple = ()
         if seed is not None:
             np.random.seed(seed)
 
@@ -307,7 +326,7 @@ class QuadraticRoughHeston:
         y0_0 = (self.xi0(0.0) - self.c) ** 0.5
         alp = 1.0 / (2.0 * self.H + 1.0)
 
-        def sim(expiry):
+        def sim(expiry, output):
             """
             Simulate single expiry for Quadratic Rough Heston model.
 
@@ -325,7 +344,7 @@ class QuadraticRoughHeston:
                 - 'v': variance process (if output='all')
                 - 'w': integrated variance (if output='all')
                 - 'chi': volatility shocks (if output='all')
-                - '_h' variants if h_ssr is provided
+                - 'X_h', 'v_h', 'w_h' if h_ssr is provided
             """
             print(f"expiry: {expiry:.4f}")
             dt = expiry / steps
@@ -436,35 +455,34 @@ class QuadraticRoughHeston:
 
         results = {}
 
-        # Convert to tuple for comparison and set logic
-        spx_expiries_tuple = tuple(spx_expiries) if spx_expiries is not None else ()
-        vix_expiries_tuple = tuple(vix_expiries) if vix_expiries is not None else ()
-
         if (
             spx_expiries_tuple
             and vix_expiries_tuple
             and spx_expiries_tuple == vix_expiries_tuple
         ):
-            # Only compute once if expiries are the same
-            if output != "all":
-                output = "spx-vix"
             print("Simulating SPX and VIX expiries...")
-            sim_out = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
-            results["spx"] = {k: {"X": v["X"]} for k, v in sim_out.items()}
+            sim_out = {expiry: sim(expiry, output) for expiry in spx_expiries_tuple}
+            spx_keys = ("X",) if h_ssr is None else ("X", "X_h", "v_h", "w_h")
+            results["spx"] = {
+                expiry: {key: values[key] for key in spx_keys}
+                for expiry, values in sim_out.items()
+            }
             results["vix"] = {k: {"vix": v["vix"]} for k, v in sim_out.items()}
             if output == "all":
                 results["all"] = sim_out
         else:
-            if spx_expiries is not None:
+            if spx_expiries_tuple:
                 print("Simulating SPX expiries...")
-                if output != "all":
-                    output = "spx"
-                results["spx"] = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
-            if vix_expiries is not None:
+                spx_output = "all" if output == "all" else "spx"
+                results["spx"] = {
+                    expiry: sim(expiry, spx_output) for expiry in spx_expiries_tuple
+                }
+            if vix_expiries_tuple:
                 print("Simulating VIX expiries...")
-                if output != "all":
-                    output = "vix"
-                results["vix"] = {expiry: sim(expiry) for expiry in vix_expiries_tuple}
+                vix_output = "all" if output == "all" else "vix"
+                results["vix"] = {
+                    expiry: sim(expiry, vix_output) for expiry in vix_expiries_tuple
+                }
 
         return results
 
