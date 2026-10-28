@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.stats import norm
 from scipy.optimize import root_scalar
+from scipy.stats import norm
 
 
 def black_price(K, T, F, vol, r=0.0, opttype=1):
@@ -68,7 +68,7 @@ def black_impvol_brentq(K, T, F, value, r=0.0, opttype=1):
     try:
         result = root_scalar(
             f=lambda vol: black_price(K, T, F, vol, r, opttype) - value,
-            bracket=[1e-10, 5.0],
+            bracket=[1e-10, 10.0],
             method="brentq",
         )
         return result.root if result.converged else np.nan
@@ -101,9 +101,9 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
 
     Returns
     -------
-    ndarray or float
-        Implied volatility(ies) corresponding to the input option prices. If the
-        input arrays are multidimensional, the output will have the same shape.
+    ndarray
+        Implied volatilities corresponding to the input option prices. Scalar
+        inputs produce a one-element array; array inputs retain their shape.
         Returns NaN if the implied volatility does not converge or if invalid
         inputs are provided.
 
@@ -112,16 +112,15 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
     ValueError
         If `K` and `value` do not have the same shape.
         If `opttype` is not 1 or -1.
-        If the implied volatility does not converge within `MAX_ITER` iterations.
     """
-    K = np.atleast_1d(K)
-    value = np.atleast_1d(value)
-    opttype = np.full_like(K, opttype)
+    K = np.atleast_1d(np.asarray(K, dtype=float))
+    value = np.atleast_1d(np.asarray(value, dtype=float))
+    opttype = np.broadcast_to(opttype, K.shape)
 
     if K.shape != value.shape:
         raise ValueError("K and value must have the same shape.")
 
-    if np.abs(opttype).any() != 1:
+    if not np.all(np.isin(opttype, [-1, 1])):
         raise ValueError("opttype must be either 1 or -1.")
 
     F = float(F)
@@ -136,7 +135,8 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
     mid = 0.5 * (low + high)
     for _ in range(MAX_ITER):
         price = black_price(K, T, F, mid, r, opttype)
-        diff = (price - value) / value
+        with np.errstate(divide="ignore", invalid="ignore"):
+            diff = (price - value) / value
 
         if np.all(np.abs(diff) < TOL):
             return mid
@@ -146,10 +146,12 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
         low[~mask] = mid[~mask]
         mid = 0.5 * (low + high)
 
-    raise ValueError("Implied volatility did not converge.")
+    # Set mid to NaN where the tolerance is not met
+    mid = np.where(np.abs(diff) < TOL, mid, np.nan)
+    return mid
 
 
-def black_otm_impvol_mc(S, k, T, mc_error=False):
+def black_otm_impvol_mc(S, k, T, mc_error=False, return_atm_skew=False):
     """
     Calculate Black implied volatility using Monte Carlo simulated stock prices and
     out-of-the-money (OTM) prices.
@@ -165,10 +167,14 @@ def black_otm_impvol_mc(S, k, T, mc_error=False):
         Time to maturity of the option.
     mc_error : bool, optional
         If True, computes the 95% confidence interval for the implied volatility.
+    return_atm_skew : bool, optional
+        Return ATM implied volatility and digital skew at the sample forward.
+        Takes precedence over k and mc_error.
 
     Returns
     -------
-    dict or ndarray
+    dict, ndarray or tuple
+        If `return_atm_skew` is True, returns (ATM implied volatility, ATM skew).
         If `mc_error` is False, returns an ndarray of OTM implied volatilities.
         If `mc_error` is True, returns a dictionary with the following keys:
         - 'otm_impvol': ndarray of OTM implied volatilities.
@@ -180,6 +186,18 @@ def black_otm_impvol_mc(S, k, T, mc_error=False):
     """
     k = np.atleast_1d(np.asarray(k))
     F = np.mean(S)
+
+    if return_atm_skew:
+        # compute atm skew
+        atm_call = np.mean(np.maximum(S - F, 0.0))
+        atm_impvol = black_impvol(K=F, T=T, F=F, value=atm_call, opttype=1)
+        w = T * atm_impvol**2
+        atm_digit = np.mean(S >= F)
+        atm_skew = norm.cdf(-0.5 * w**0.5) - atm_digit
+        atm_skew /= T**0.5 * norm.pdf(-0.5 * w**0.5)
+
+        return atm_impvol, atm_skew
+
     K = F * np.exp(k)
     opttype = 2 * (K >= F) - 1
     payoff = np.maximum(opttype[None, :] * (S[:, None] - K[None, :]), 0.0)

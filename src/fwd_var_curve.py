@@ -1,6 +1,8 @@
+import warnings
+
 import numpy as np
-from scipy.optimize import minimize
 from scipy.linalg import inv
+from scipy.optimize import minimize
 
 
 def obj_w(expiries, w_in):
@@ -43,7 +45,7 @@ def xi_curve(expiries, w_in, eps=0):
         else:
             return xi_vec_out[-1]
 
-    xi_curve_out = np.vectorize(xi_curve_raw)
+    xi_curve_out = np.vectorize(xi_curve_raw, otypes=[float])
     fit_errs = np.sqrt(w_in_1 / expiries) - np.sqrt(w_in / expiries)
 
     return {
@@ -75,21 +77,59 @@ def xi_curve_smooth(expiries, w_in, xi=True, eps=0.0):
 
     def obj_1(err_vec):
         v = w_in + 2 * np.sqrt(w_in) * err_vec * np.sqrt(expiries)
-        return v.T @ A_inv @ v
+        with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+            value = v.T @ A_inv @ v
+        return float(value) if np.isfinite(value) else np.finfo(float).max
 
-    res_optim = minimize(
-        obj_1, np.zeros(n), method="L-BFGS-B", bounds=[(-eps, eps)] * n
-    )
-    err_vec = res_optim.x
+    if eps > 0:
+        def obj_1_grad(err_vec):
+            step = 1e-3
+            grad = np.empty(n)
+            for i in range(n):
+                err_hi = err_vec.copy()
+                err_lo = err_vec.copy()
+                err_hi[i] = min(eps, err_vec[i] + step)
+                err_lo[i] = max(-eps, err_vec[i] - step)
+                grad[i] = (obj_1(err_hi) - obj_1(err_lo)) / (
+                    err_hi[i] - err_lo[i]
+                )
+            return grad
+
+        res_optim = minimize(
+            obj_1,
+            np.zeros(n),
+            method="L-BFGS-B",
+            jac=obj_1_grad,
+            bounds=[(-eps, eps)] * n,
+            options={
+                "maxcor": 5,
+                "ftol": 1e7 * np.finfo(float).eps,
+                "gtol": 0,
+                "maxiter": 100,
+            },
+        )
+        if not res_optim.success:
+            warnings.warn(
+                f"Forward variance fit did not converge: {res_optim.message}. "
+                "Returning the current fit.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        err_vec = res_optim.x
+    else:
+        err_vec = np.zeros(n)
     w_in_1 = w_in + 2 * np.sqrt(w_in) * err_vec * np.sqrt(expiries)
-    Z = A_inv @ w_in_1
+    # L-BFGS-B can leave IEEE status flags set; the product itself is finite for
+    # valid inputs, so isolate it from those stale floating-point warnings.
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        Z = A_inv @ w_in_1
 
     def curve_raw(x):
         sum_curve = sum(Z[i] * phi(expiries[i])(x) for i in range(n))
         sum_curve_deri = sum(Z[i] * phi_deri(expiries[i])(x) for i in range(n))
         return sum_curve_deri if xi else sum_curve
 
-    xi_curve_out = np.vectorize(curve_raw)
+    xi_curve_out = np.vectorize(curve_raw, otypes=[float])
     fit_errs = np.sqrt(w_in_1 / expiries) - np.sqrt(w_in / expiries)
 
     return {"xi_curve": xi_curve_out, "fit_errs": fit_errs, "w_out": w_in_1}
