@@ -101,9 +101,9 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
 
     Returns
     -------
-    ndarray or float
-        Implied volatility(ies) corresponding to the input option prices. If the
-        input arrays are multidimensional, the output will have the same shape.
+    ndarray
+        Implied volatilities corresponding to the input option prices. Scalar
+        inputs produce a one-element array; array inputs retain their shape.
         Returns NaN if the implied volatility does not converge or if invalid
         inputs are provided.
 
@@ -112,16 +112,15 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
     ValueError
         If `K` and `value` do not have the same shape.
         If `opttype` is not 1 or -1.
-        If the implied volatility does not converge within `MAX_ITER` iterations.
     """
-    K = np.atleast_1d(K)
-    value = np.atleast_1d(value)
-    opttype = np.full_like(K, opttype)
+    K = np.atleast_1d(np.asarray(K, dtype=float))
+    value = np.atleast_1d(np.asarray(value, dtype=float))
+    opttype = np.broadcast_to(opttype, K.shape)
 
     if K.shape != value.shape:
         raise ValueError("K and value must have the same shape.")
 
-    if np.abs(opttype).any() != 1:
+    if not np.all(np.isin(opttype, [-1, 1])):
         raise ValueError("opttype must be either 1 or -1.")
 
     F = float(F)
@@ -136,7 +135,8 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
     mid = 0.5 * (low + high)
     for _ in range(MAX_ITER):
         price = black_price(K, T, F, mid, r, opttype)
-        diff = (price - value) / value
+        with np.errstate(divide="ignore", invalid="ignore"):
+            diff = (price - value) / value
 
         if np.all(np.abs(diff) < TOL):
             return mid
@@ -149,8 +149,6 @@ def black_impvol(K, T, F, value, r=0.0, opttype=1, TOL=1e-6, MAX_ITER=1000):
     # Set mid to NaN where the tolerance is not met
     mid = np.where(np.abs(diff) < TOL, mid, np.nan)
     return mid
-
-    raise ValueError("Implied volatility did not converge.")
 
 
 def black_otm_impvol_mc(S, k, T, mc_error=False, return_atm_skew=False):
@@ -169,10 +167,14 @@ def black_otm_impvol_mc(S, k, T, mc_error=False, return_atm_skew=False):
         Time to maturity of the option.
     mc_error : bool, optional
         If True, computes the 95% confidence interval for the implied volatility.
+    return_atm_skew : bool, optional
+        Return ATM implied volatility and digital skew at the sample forward.
+        Takes precedence over k and mc_error.
 
     Returns
     -------
-    dict or ndarray
+    dict, ndarray or tuple
+        If `return_atm_skew` is True, returns (ATM implied volatility, ATM skew).
         If `mc_error` is False, returns an ndarray of OTM implied volatilities.
         If `mc_error` is True, returns a dictionary with the following keys:
         - 'otm_impvol': ndarray of OTM implied volatilities.

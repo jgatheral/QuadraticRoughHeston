@@ -25,6 +25,3 @@ For R notebooks, install the dependencies and register the kernel:
 install.packages(c("IRkernel", "gsl", "MittagLeffleR", "statmod"))
 IRkernel::installspec()
 ```
-
-Run notebooks from top to bottom. Simulations default to 300,000 paths, 300 steps.
-Reduce paths and steps for quick checks.

@@ -21,3 +21,14 @@ def test_implied_volatility_round_trip(solver, opttype):
     prices = black_price(strikes, 0.5, 100, vols, r=0.03, opttype=opttype)
     actual = solver(strikes, 0.5, 100, prices, r=0.03, opttype=opttype)
     np.testing.assert_allclose(actual, vols, rtol=2e-6)
+
+
+@pytest.mark.parametrize("opttype", [0, 2, 0.5, [1, 2], [-1, 0]])
+def test_invalid_option_type(opttype):
+    with pytest.raises(ValueError, match="opttype"):
+        black_impvol([90, 110], 0.5, 100, [12.0, 3.0], opttype=opttype)
+
+
+def test_integer_strikes_at_invalid_expiry():
+    result = black_impvol([90, 110], 0, 100, [10, 0])
+    assert np.isnan(result).all()

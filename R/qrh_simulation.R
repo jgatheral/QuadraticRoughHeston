@@ -91,7 +91,7 @@ QRH.sim <- function(params, xi, n_quad = 20) {
     if (output != "all") {
       sim.out <- do.call(rbind, lapply(expiries, sim))
     }
-    # If "all" is selected the code returns a list of vectors.
+    # "all" returns one named list of output vectors per expiry.
     else {
       for (j in 1:length(expiries)) {
         sim.out[[j]] <- sim(expiries[j])
@@ -174,7 +174,6 @@ QRH.blip <- function(params, xi, h = 0.01, n_quad = 20) {
         dw <- (v + vf) / 2 * dt
         w <- w + dw
         Chi <- Chi + chi[j, ] # This is int_0^T \sqrt{V_t} \dW_t
-        #             X <- X - dw/2 - chi[j, ]
         if (j < steps) {
           btilde <- rev(bstar[2:(j + 1)])
           yhat <- yj[j + 1] + as.numeric(btilde %*% chi[1:j, , drop = FALSE])
@@ -195,7 +194,6 @@ QRH.blip <- function(params, xi, h = 0.01, n_quad = 20) {
         dw.h <- (v.h + vf.h) / 2 * dt
         w.h <- w.h + dw.h
         Chi.h <- Chi.h + chi.h[j, ]
-        #             X <- X - dw/2 - chi[j, ]
         if (j < steps) {
           yhat.h <- yj.h[j + 1] + as.numeric(btilde %*% chi.h[1:j, , drop = FALSE])
         }

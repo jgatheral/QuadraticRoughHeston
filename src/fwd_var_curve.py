@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from scipy.linalg import inv
 from scipy.optimize import minimize
@@ -80,11 +82,9 @@ def xi_curve_smooth(expiries, w_in, xi=True, eps=0.0):
         return float(value) if np.isfinite(value) else np.finfo(float).max
 
     if eps > 0:
-        # R's optim() uses a central finite-difference step of 1e-3 by default.
-        # That relatively large step matters here because A is very ill-conditioned;
-        # SciPy's much smaller default step produces noisy gradients and a different
-        # fit.  Match the other implementation's bounds handling and L-BFGS-B
-        # defaults so the two ports follow the same optimization path closely.
+        # Retain the historical paper fit's central differences and optimizer
+        # settings. The current R smoother uses Cholesky solves and analytical
+        # gradients, so fits can differ on ill-conditioned market expiry grids.
         def obj_1_grad(err_vec):
             step = 1e-3
             grad = np.empty(n)
@@ -111,6 +111,13 @@ def xi_curve_smooth(expiries, w_in, xi=True, eps=0.0):
                 "maxiter": 100,
             },
         )
+        if not res_optim.success:
+            warnings.warn(
+                f"Forward variance fit did not converge: {res_optim.message}. "
+                "Returning the historical fit.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         err_vec = res_optim.x
     else:
         err_vec = np.zeros(n)

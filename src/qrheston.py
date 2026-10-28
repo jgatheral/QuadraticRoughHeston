@@ -93,7 +93,7 @@ class QuadraticRoughHeston:
         ndarray
             y0(u) values at u.
         """
-        u = np.atleast_1d(u)
+        u = np.atleast_1d(np.asarray(u, dtype=float))
         integral = np.zeros_like(u)
         mask = u > 0
         x_jac, w_jac = roots_jacobi(n=self.n_quad, alpha=2.0 * self.H - 1.0, beta=0.0)
@@ -114,7 +114,9 @@ class QuadraticRoughHeston:
         Parameters
         ----------
         u : array_like
-            Time points where u >= 0.
+            Positive time points; the rough kernel is singular at zero.
+        h : float
+            Shift amplitude, subtracted as h * kernel(u).
 
         Returns
         -------
@@ -192,7 +194,7 @@ class QuadraticRoughHeston:
         if quad_scipy:
             return integrate.quad(lambda s: self.kernel(s) ** 2, 0.0, x)[0]
         else:
-            x = np.atleast_1d(np.asarray(x))
+            x = np.atleast_1d(np.asarray(x, dtype=float))
             if self.lam == 0.0:
                 return (
                     (self.nu / gamma(self.al)) ** 2
@@ -229,7 +231,7 @@ class QuadraticRoughHeston:
         if quad_scipy:
             return integrate.quad(lambda s: self.kernel(s), 0.0, x)[0]
         else:
-            x = np.atleast_1d(np.asarray(x))
+            x = np.atleast_1d(np.asarray(x, dtype=float))
             if self.lam == 0.0:
                 return (self.nu / gamma(self.al)) * x**self.al / self.al
             mask = x > 0
@@ -268,14 +270,14 @@ class QuadraticRoughHeston:
             Expiry times for SPX outputs.
         vix_expiries : array_like or None
             Expiry times for VIX outputs.
-        output : {'all', 'spx', 'vix'} or None, default None
+        output : {'all', 'spx', 'vix', 'spx-vix'} or None, default None
             Which outputs to return. If None, inferred from expiries.
         delvix : float, default 1/12
             VIX averaging window length.
         nvix : int, default 10
-            Number of quadrature points for VIX calculation.
+            Number of trapezoidal intervals for VIX calculation.
         h_ssr : callable or None, optional
-            Function for shifted y0 (for SSR). Takes expiry as argument.
+            Shift amplitude h(T) subtracted as h(T) * kernel(u) from y0(u).
         seed : int or None, optional
             Random seed for reproducibility.
 
@@ -287,7 +289,7 @@ class QuadraticRoughHeston:
             computations are shared to avoid duplication.
         """
         if not paths > 0:
-            raise ValueError("'paths' must be postive.")
+            raise ValueError("'paths' must be positive.")
         if not steps > 0:
             raise ValueError("'steps' must be positive.")
         if not delvix > 0:
@@ -301,9 +303,6 @@ class QuadraticRoughHeston:
         if seed is not None:
             np.random.seed(seed)
 
-        # Prepare random numbers
-        # Z_eps = np.random.normal(size=(steps, paths))
-        # Z_chi = np.random.normal(size=(steps, paths))
         v0 = self.xi0(0.0)
         y0_0 = (self.xi0(0.0) - self.c) ** 0.5
         alp = 1.0 / (2.0 * self.H + 1.0)
@@ -447,6 +446,8 @@ class QuadraticRoughHeston:
             and spx_expiries_tuple == vix_expiries_tuple
         ):
             # Only compute once if expiries are the same
+            if output != "all":
+                output = "spx-vix"
             print("Simulating SPX and VIX expiries...")
             sim_out = {expiry: sim(expiry) for expiry in spx_expiries_tuple}
             results["spx"] = {k: {"X": v["X"]} for k, v in sim_out.items()}

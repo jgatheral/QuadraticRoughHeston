@@ -88,7 +88,7 @@ def kernel_exp_approx(
     U_m = U[:, m]
 
     ### Step 3
-    # choose m distinct roots in (0,1]
+    # Retain real roots in [0, 1).
     roots_m = np.roots(U_m[::-1])
     roots_m = np.real(roots_m[np.isreal(roots_m)])
     roots_01 = roots_m[(roots_m >= 0) & (roots_m < 1)]
@@ -176,7 +176,6 @@ def plot_ivols_mc(
     atm_curv = np.zeros(n_slices)
     atm_vols_mc = np.zeros(n_slices)
     atm_skew_mc = np.zeros(n_slices)
-    atm_curv_mc = np.zeros(n_slices)
     atm_err_mc = np.zeros(n_slices)
     if return_error_metrics:
         rmse_bid_ask_mc = np.full(n_slices, np.nan)
@@ -226,9 +225,6 @@ def plot_ivols_mc(
             sig_mc_right = np.asarray(vol_mc(sig_mc / 10.0)).item()
             sig_mc_left = np.asarray(vol_mc(-sig_mc / 10.0)).item()
             atm_skew_mc[i] = (sig_mc_right - sig_mc_left) / (2.0 * sig_mc / 10.0)
-            atm_curv_mc[i] = (
-                sig_mc_right + sig_mc_left - 2.0 * atm_vols_mc[i]
-            ) / (2.0 * (sig_mc / 10.0) ** 2.0)
 
             def err_mc(k):
                 return black_otm_impvol_mc(
@@ -292,7 +288,7 @@ def plot_ivols_mc(
 
 
 def var_swap_robust(ivol_data, slices=None):
-    """Robust estimation of variance swap quotes."""
+    """Estimate variance swaps for selected expiry indices, in selection order."""
     ivol_data = ivol_data.dropna()
     bid_vols = ivol_data["Bid"].astype(float)
     ask_vols = ivol_data["Ask"].astype(float)
@@ -300,6 +296,7 @@ def var_swap_robust(ivol_data, slices=None):
     n_slices = len(exp_dates)
 
     if slices is not None:
+        slices = list(slices)
         n_slices = len(slices)
     else:
         slices = range(n_slices)
@@ -330,7 +327,7 @@ def var_swap_robust(ivol_data, slices=None):
         res_vs = res_mid + res_lh + res_rh
         return res_vs
 
-    for slice_idx in slices:
+    for i, slice_idx in enumerate(slices):
         t = exp_dates[slice_idx]
         texp = ivol_data["Texp"]
         bid_vol = bid_vols[texp == t].to_numpy()
@@ -338,12 +335,12 @@ def var_swap_robust(ivol_data, slices=None):
         mid_vol = (bid_vol + ask_vol) / 2
         F = ivol_data["Fwd"][texp == t].iloc[0]  # forward price
         k = np.log(ivol_data["Strike"][texp == t].to_numpy() / F)  # log-fwd moneyness
-        vs_mid[slice_idx] = varswap(k, mid_vol, slice_idx) / t
-        vs_bid[slice_idx] = varswap(k, bid_vol, slice_idx) / t
-        vs_ask[slice_idx] = varswap(k, ask_vol, slice_idx) / t
+        vs_mid[i] = varswap(k, mid_vol, slice_idx) / t
+        vs_bid[i] = varswap(k, bid_vol, slice_idx) / t
+        vs_ask[i] = varswap(k, ask_vol, slice_idx) / t
 
     return {
-        "expiries": exp_dates,
+        "expiries": exp_dates[list(slices)],
         "vs_mid": vs_mid,
         "vs_bid": vs_bid,
         "vs_ask": vs_ask,
@@ -363,7 +360,7 @@ def y0_from_xi0(u, xi_smooth, w_jac, x_jac, params):
     ndarray
         y0(u) values at u.
     """
-    u = np.atleast_1d(u)
+    u = np.atleast_1d(np.asarray(u, dtype=float))
     integral = np.zeros_like(u)
     mask = u > 0
     H = params["al"] - 0.5

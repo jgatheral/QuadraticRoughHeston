@@ -57,11 +57,12 @@ def simulate_qrh_approx(
     Parameters
     ----------
     params : dict
-        Model parameters with keys: 'H', 'lam', 'rho', 'a', 'b0', 'p', 'x0'.
+        Model parameters with keys 'H', 'lam', 'rho', 'p' and time-dependent
+        callables 'a0', 'a1', 'a2', 'b0', 'x0'.
     T : float
         Time to maturity.
     k : array_like
-        Strike prices for implied volatility computation.
+        Log-forward moneyness for implied volatility computation.
     n_steps : int
         Number of time steps.
     n_mc : int
@@ -69,7 +70,7 @@ def simulate_qrh_approx(
     seed : int, optional
         Random seed for reproducibility.
     return_paths : bool, default=False
-        If True, return (X, V, S) paths; otherwise return implied volatilities.
+        If True, return (V, S) paths; otherwise return implied volatilities.
     eps_ssr : float, optional
         Small shift for SSR computation.
     hybrid : bool, default=True
@@ -81,8 +82,9 @@ def simulate_qrh_approx(
 
     Returns
     -------
-    ndarray
-        Implied volatilities if return_paths=False, else tuple of (X, V, S) arrays.
+    ndarray, tuple or dict
+        Implied volatilities if return_paths=False, else (V, S) arrays.
+        A nonzero eps_ssr instead returns SSR and ATM volatility/skew estimates.
     """
     left_kernel, right_kernel = endpoints_kernel
     if left_kernel is None:

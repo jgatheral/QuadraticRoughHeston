@@ -69,7 +69,8 @@ varSwap.Robust <- function(ivolData, slices = NULL) {
     return(res.vs)
   } # End of varswap function
 
-  for (slice in slices) {
+  for (i in seq_along(slices)) {
+    slice <- slices[i]
     t <- expDates[slice]
     texp <- ivolData$Texp
     bidVol <- bidVols[texp == t]
@@ -79,12 +80,12 @@ varSwap.Robust <- function(ivolData, slices = NULL) {
     k <- log(ivolData$Strike[texp == t] / f)
     include <- !is.na(midVol)
     kIn <- k[include]
-    vs.mid[slice] <- varswap(kIn, midVol, include, slice) / t
-    vs.bid[slice] <- varswap(kIn, bidVol, include, slice) / t
-    vs.ask[slice] <- varswap(kIn, askVol, include, slice) / t
+    vs.mid[i] <- varswap(kIn, midVol, include, slice) / t
+    vs.bid[i] <- varswap(kIn, bidVol, include, slice) / t
+    vs.ask[i] <- varswap(kIn, askVol, include, slice) / t
   }
   return(list(
-    expiries = expDates, vs.mid = vs.mid, vs.bid = vs.bid,
+    expiries = expDates[slices], vs.mid = vs.mid, vs.bid = vs.bid,
     vs.ask = vs.ask
   ))
 }

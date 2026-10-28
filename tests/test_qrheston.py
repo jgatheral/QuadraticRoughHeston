@@ -37,3 +37,18 @@ def test_ssr(model):
     assert ssr.shape == expiries.shape
     assert np.isfinite(ssr).all()
     np.testing.assert_array_equal(ssr, model.compute_ssr(**kwargs))
+
+
+@pytest.mark.parametrize("method", ["y0", "integral_K0", "integral_K00"])
+def test_integer_times(model, method):
+    evaluate = getattr(model, method)
+    np.testing.assert_allclose(evaluate([0, 1]), evaluate([0.0, 1.0]))
+
+
+def test_joint_expiries_infer_output(model):
+    kwargs = dict(paths=16, steps=4, spx_expiries=[0.1], vix_expiries=[0.1],
+                  nvix=2, seed=1234)
+    inferred = model.simulate(**kwargs)
+    explicit = model.simulate(**kwargs, output="spx-vix")
+    for asset, key in [("spx", "X"), ("vix", "vix")]:
+        np.testing.assert_array_equal(inferred[asset][0.1][key], explicit[asset][0.1][key])
